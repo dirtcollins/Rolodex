@@ -8,7 +8,7 @@ const OLD = ["/dashboard", "/follow-ups", "/contacts", "/companies", "/todos", "
 
 export function proxy(request: NextRequest) {
   const p = request.nextUrl.pathname;
-  if (p === "/" || OLD.some((o) => p === o || p.startsWith(o + "/"))) return NextResponse.redirect(new URL("/v3", request.url), 307);
+  if (p === "/" || OLD.some((o) => p === o || p.startsWith(o + "/"))) return new Response(null, { status: 307, headers: { Location: "/v3" } });
   const headers = new Headers(request.headers);
   headers.set("x-rolodex-path", request.nextUrl.pathname + request.nextUrl.search);
   return NextResponse.next({ request: { headers } });

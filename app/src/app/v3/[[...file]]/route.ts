@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { session } from "@/lib/auth";
 import { v3Data } from "@/lib/v3-data";
 
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 const ROOT = path.resolve(process.cwd(), "..");
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };
 
-function denied(request: NextRequest) { const login = new URL("/login", request.url); login.searchParams.set("next", request.nextUrl.pathname); return NextResponse.redirect(login); }
+// A relative address: behind Hostinger's proxy, request.url is the internal server, not the site.
+function denied(request: NextRequest) { return new Response(null, { status: 307, headers: { Location: "/login?next=" + encodeURIComponent(request.nextUrl.pathname) } }); }
 export async function GET(request: NextRequest, context: { params: Promise<{ file?: string[] }> }) {
   if (!await session()) return denied(request);
   const parts = (await context.params).file ?? [];
