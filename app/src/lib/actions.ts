@@ -206,6 +206,28 @@ const actions: Record<string, Action> = {
       needs, tags, owner_id, next_follow_up, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) returning id::int`, [...f, s.user.id]) as never;
   },
   /** Only the fields sent (filling in a website or city found later), the rest untouched. */
+  /** Only the contact fields sent change; everything else on the contact stays as it is. */
+  "contact.patch": async (d) => {
+    const id = need(int(d.id), "Pick a contact.");
+    const sets: string[] = [], vals: unknown[] = [id];
+    const put = (col: string, v: unknown, cast = "") => { vals.push(v); sets.push(`${col} = $${vals.length}${cast}`); };
+    if ("keep_in_touch" in d) { const k = int(d.keep_in_touch); put("keep_in_touch", k && [30, 60, 90, 180].includes(k) ? k : null); }
+    if ("next_follow_up" in d) put("next_follow_up", date(d.next_follow_up));
+    if (typeof d.website === "string") put("website", str(d.website, 300));
+    if (typeof d.linkedin === "string") put("linkedin", str(d.linkedin, 300));
+    if (typeof d.socials === "string") put("socials", text(d.socials).slice(0, 2000));
+    if (Array.isArray(d.email_values)) {
+      // The full list of addresses, in order. Each keeps its label; addresses left out are removed.
+      const cur = (await one<{ emails: { label: string; value: string }[] }>("select emails from contacts where id = $1 and deleted_at is null", [id]))?.emails ?? [];
+      const next = [...new Set((d.email_values as unknown[]).map((v) => str(v, 200)).filter(Boolean))].slice(0, 8)
+        .map((v) => ({ label: cur.find((e) => e.value.toLowerCase() === v.toLowerCase())?.label ?? "", value: v }));
+      put("emails", JSON.stringify(next), "::text::jsonb");
+    }
+    if (!sets.length) return { id };
+    const done = await query(`update contacts set ${sets.join(", ")}, updated_at = now() where id = $1 and deleted_at is null returning id`, vals);
+    if (!done.length) throw new Problem("That contact was deleted.");
+    return { id };
+  },
   "company.patch": async (d) => {
     const id = need(int(d.id), "Pick a company.");
     const MAX: Record<string, number> = { website: 300, phone: 40, email: 200, street: 160, city: 80, state: 40, zip: 20, industry: 80, linkedin: 300, size: 40, revenue: 60 };
@@ -348,8 +370,8 @@ const actions: Record<string, Action> = {
     // Editing leaves the project link as it was (the form doesn't show it).
     // Who gave it to its person, and when (the bell: "Nathan gave you a to-do").
     if (id) { await query(`update todos set title=$2, notes=$3, due=$4, high=$5, contact_id=$7, company_id=$8, opportunity_id=coalesce($9, opportunity_id), subtasks=$10::text::jsonb, comments=$11::text::jsonb, position=coalesce($12, position),
-      assigned_by = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then $10::bigint end) else assigned_by end,
-      assigned_at = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then now() end) else assigned_at end, assigned_to=$6 where id=$1`, [id, ...f, s.user.id]); return { id }; }
+      assigned_by = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then $13::bigint end) else assigned_by end,
+      assigned_at = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then now() end) else assigned_at end, assigned_to=$6 where id=$1 and deleted_at is null returning id`, [id, ...f, s.user.id]).then((r) => { if (!r.length) throw new Problem("That to-do was deleted."); }); return { id }; }
     return one<{ id: number }>("insert into todos (title, notes, due, high, assigned_to, contact_id, company_id, opportunity_id, subtasks, comments, position, created_by, assigned_by, assigned_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,coalesce($11, (select coalesce(max(position), 0) + 1 from todos)),$12, case when $5::bigint is not null then $12::bigint end, case when $5::bigint is not null then now() end) returning id::int", [...f, s.user.id]) as never;
   },
   "todo.done": async (d) => { await query("update todos set done_at = case when $2 then now() end where id = $1", [need(int(d.id), "Pick a to-do."), d.done !== false]); },

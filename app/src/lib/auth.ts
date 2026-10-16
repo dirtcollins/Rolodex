@@ -98,7 +98,7 @@ export const session = cache(async (): Promise<Session | null> => {
 
 export function safeNext(next: string | null | undefined): string {
   const n = String(next ?? "");
-  return /^\/[A-Za-z0-9]/.test(n) && !n.startsWith("//") && !n.includes("\\") && !n.startsWith("/login") ? n : "/dashboard";
+  return /^\/[A-Za-z0-9]/.test(n) && !n.startsWith("//") && !n.includes("\\") && !n.startsWith("/login") ? n : "/v3";
 }
 
 /** A new cookie value when the email and password match, else null ("short": a first password under MIN_PASSWORD). */

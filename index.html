@@ -1491,6 +1491,7 @@ class Component extends DCLogic {
     return (this._kidsOk = ['FollowUpRow', 'TodoItem', 'TodoEditor', 'PickMenu', 'DatePicker'].every(ok));
   }
   componentDidMount() {
+    this.startSync();
     if (!this.kidsReady()) { const tick = () => { if (this.kidsReady()) this.forceUpdate(); else this._kr = requestAnimationFrame(tick); }; this._kr = requestAnimationFrame(tick); }
     this.onKey = e => {
       const tag = (e.target && e.target.tagName) || '', typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.target && e.target.isContentEditable);
@@ -1552,6 +1553,120 @@ class Component extends DCLogic {
     if (kind !== 'note' && n.type === 'contact') out = this.patch('contact', n.rid, { last: TODAY }, out);
     return out;
   }
+  // ---------------------------------------------------------------- saving
+  // Changes happen on screen first. After each update, componentDidUpdate compares state.data with the copy the database
+  // last confirmed and sends only what changed, in order, through /api/save. New records are created and get their real
+  // id back. Undo is just another change, so it saves the same way.
+  startSync() {
+    if (!RX) return;
+    const d = this.state.data;
+    this.saved = d; this.queue = Promise.resolve(); this.timers = {};
+    this.known = { contacts: new Set(d.contacts.map(x => x.id)), companies: new Set(d.companies.map(x => x.id)), deals: new Set(d.deals.map(x => x.id)), notes: new Set(d.notes.map(x => x.id)), todos: new Set(d.todos.map(x => x.id)) };
+  }
+  componentDidUpdate() {
+    if (!this.saved || this.state.data === this.saved) return;
+    const before = this.saved; this.saved = this.state.data;
+    this.syncChanges(before, this.state.data);
+  }
+  send(action, data) {
+    const run = () => fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, data }) })
+      .then(r => r.json().catch(() => ({})).then(out => {
+        if (r.status === 401) throw new Error('You were signed out. Reload and sign in again.');
+        if (!r.ok || !out.ok) throw new Error(out.error || 'That didn’t save. Try again.');
+        return out;
+      }));
+    const p = this.queue.then(run);
+    this.queue = p.catch(() => {});
+    return p.catch(err => { this.flash({ msg: 'Couldn’t save', sub: err.message, action: 'Reload', run: () => location.reload() }); return null; });
+  }
+  later(key, fn) { clearTimeout(this.timers[key]); this.timers[key] = setTimeout(fn, 600); }
+  // A record the database just created: swap the temporary id for the real one, on screen and in the saved copy.
+  adopt(coll, tempId, id, extra) {
+    const swap = d => { const out = { ...d, [coll]: d[coll].map(x => x.id === tempId ? { ...x, id } : x) }; return extra ? extra(out) : out; };
+    this.known[coll].add(id);
+    this.saved = swap(this.saved);
+    this.setState(st => ({ data: swap(st.data), contactId: coll === 'contacts' && st.contactId === tempId ? id : st.contactId }));
+  }
+  teamId(k) { const m = this.state.prefs.team.find(x => x.k === k); return m ? m.id : null; }
+  syncChanges(a, b) {
+    const known = this.known, byId = list => new Map(list.map(x => [x.id, x]));
+    const changed = (coll, fn) => { const old = byId(a[coll]); b[coll].forEach(x => { const o = old.get(x.id); if (o !== x) fn(x, o); }); };
+    const removed = (coll, fn) => { const now = byId(b[coll]); a[coll].forEach(x => { if (!now.has(x.id)) fn(x); }); };
+    // A company typed by name (new contact or deal) is created by the server with that record.
+    const companyRef = id => { const c = b.companies.find(x => x.id === id); return !c ? {} : known.companies.has(id) ? { company_id: id } : { company: c.name }; };
+    const adoptCompany = (tempId, id) => d => {
+      if (!tempId || !id || known.companies.has(tempId)) return d;
+      known.companies.add(id);
+      const fix = x => x.companyId === tempId ? { ...x, companyId: id } : x;
+      return { ...d, companies: d.companies.map(x => x.id === tempId ? { ...x, id } : x), contacts: d.contacts.map(fix), deals: d.deals.map(fix) };
+    };
+
+    changed('contacts', (c, o) => {
+      if (!known.contacts.has(c.id)) {
+        if (o) return;
+        const ref = companyRef(c.companyId);
+        this.send('contact.save', { first_name: c.first, last_name: c.lastName || c.name.slice(c.first.length).trim(), job_title: c.title, kinds: c.kind ? [c.kind] : [],
+          phones: c.phone ? [{ value: c.phone }] : [], emails: c.email ? [{ value: c.email }] : [], city: c.city, keep_in_touch: c.cadence, next_follow_up: c.next,
+          companies: ref.company_id ? [{ id: ref.company_id, title: c.title }] : ref.company ? [{ name: ref.company, title: c.title }] : [] })
+          .then(out => out && this.adopt('contacts', c.id, out.id, adoptCompany(c.companyId, out.companyId)));
+        return;
+      }
+      if (!o) return;
+      const patch = { id: c.id };
+      if (c.cadence !== o.cadence) patch.keep_in_touch = c.cadence;
+      if (c.next !== o.next) patch.next_follow_up = c.next;
+      if (c.email !== o.email || c.links !== o.links) Object.assign(patch, this.linkFields(c));
+      if (Object.keys(patch).length > 1) this.send('contact.patch', patch);
+    });
+    changed('companies', (c, o) => { if (o && known.companies.has(c.id) && c.next !== o.next) this.send('followup.set', { type: 'company', id: c.id, date: c.next }); });
+    changed('deals', (x, o) => {
+      if (!known.deals.has(x.id)) {
+        if (o) return;
+        this.send('opportunity.save', { name: x.name, ...companyRef(x.companyId), contact_id: known.contacts.has(x.contactId) ? x.contactId : null, value: String(x.value),
+          stage: x.stage, close_date: x.close, next_follow_up: x.next, owner_id: this.teamId(x.owner) })
+          .then(out => out && this.adopt('deals', x.id, out.id, adoptCompany(x.companyId, out.companyId)));
+        return;
+      }
+      if (!o) return;
+      if (x.stage !== o.stage) this.send('opportunity.move', { id: x.id, stage: x.stage });
+      if (x.next !== o.next) this.send('followup.set', { type: 'project', id: x.id, date: x.next });
+    });
+    changed('notes', (n, o) => {
+      if (n.via === 'email') return; // email.send logs the email on the timeline itself
+      if (!known.notes.has(n.id)) {
+        if (o) return;
+        this.send('note.add', { kind: n.kind, body: n.body, happened_on: n.date, touch: n.kind !== 'note', contact_id: n.type === 'contact' ? n.rid : null, company_id: n.type === 'company' ? n.rid : null })
+          .then(out => out && this.adopt('notes', n.id, out.id));
+      } else if (!o) this.send('restore', { kind: 'note', ids: [n.id] });
+      else if (n.body !== o.body) this.send('note.save', { id: n.id, body: n.body });
+    });
+    removed('notes', n => { if (known.notes.has(n.id)) this.send('note.delete', { id: n.id }); });
+    changed('todos', (t, o) => {
+      if (!known.todos.has(t.id)) {
+        if (o || t.deleted) return;
+        this.send('todo.save', this.todoFields(t)).then(out => out && this.adopt('todos', t.id, out.id));
+        return;
+      }
+      if (!o) return;
+      if (t.deleted !== o.deleted) { this.send(t.deleted ? 'todo.delete' : 'restore', t.deleted ? { id: t.id } : { kind: 'todo', ids: [t.id] }); return; }
+      if (t.done !== o.done) this.send('todo.done', { id: t.id, done: t.done });
+      const edited = Object.keys(t).some(k => k !== 'done' && k !== 'doneAt' && t[k] !== o[k]);
+      // Typing in a to-do changes it on every key, so its fields save once the typing pauses.
+      if (edited) this.later('todo' + t.id, () => { const cur = this.state.data.todos.find(x => x.id === t.id); if (cur && !cur.deleted) this.send('todo.save', { id: t.id, ...this.todoFields(cur) }); });
+    });
+  }
+  // Contact links map to the app's own fields: the first website, the first LinkedIn, the rest as socials, and every email address in order.
+  linkFields(c) {
+    const urls = (c.links || []).filter(l => l.type !== 'email'), web = urls.find(l => l.type === 'website'), li = urls.find(l => l.type === 'linkedin');
+    return { website: web ? web.url : '', linkedin: li ? li.url : '', socials: urls.filter(l => l !== web && l !== li).map(l => l.url).join('\n'),
+      email_values: [c.email, ...(c.links || []).filter(l => l.type === 'email').map(l => l.url.replace(/^mailto:/i, ''))].filter(Boolean) };
+  }
+  todoFields(t) {
+    const link = t.link || {};
+    return { title: t.text, notes: t.desc, due: t.due, high: t.prio === 1, assigned_to: this.teamId(t.who), contact_id: link.type === 'contact' ? link.id : null,
+      company_id: link.type === 'company' ? link.id : null, subtasks: t.subtasks, comments: t.comments, position: t.order };
+  }
+
   undoTo(snap, key) { return () => this.setState(s => { const r = { ...s.rowStage }; if (key) delete r[key]; return { data: snap, rowStage: r, toastOn: false }; }); }
 
   markDone(item) {
@@ -1589,7 +1704,14 @@ class Component extends DCLogic {
     this.flash({ msg: n ? 'Keep in touch every ' + (n === 180 ? '6 months' : n + ' days') : 'Keep-in-touch turned off' });
   }
   isActive(k) { const m = this.state.prefs.team.find(x => x.k === k); return !m || m.active; }
-  setPref(p) { this.setState(s => ({ prefs: { ...s.prefs, ...p } })); }
+  setPref(p) {
+    const before = this.state.prefs;
+    this.setState(s => ({ prefs: { ...s.prefs, ...p } }));
+    if (!RX) return;
+    if ('name' in p || 'phone' in p || 'signature' in p) this.later('me', () => { const x = this.state.prefs; this.send('me.save', { name: x.name, phone: x.phone, signature: x.signature }); });
+    if ('services' in p) this.send('settings.services', { services: p.services });
+    if ('team' in p) p.team.forEach(m => { const o = before.team.find(x => x.k === m.k); if (m.id && o && o.active !== m.active) this.send('user.active', { id: m.id, active: m.active }); });
+  }
   openSettings(sec) { this.setState({ settings: { sec: sec || 'profile' }, sMenu: null, palette: false, bellOpen: false, pw: { cur: '', next: '', conf: '', err: '' } }); }
   settingsV() {
     const s = this.state, st = s.settings; if (!st) return { open: false, nav: [], is: {}, notif: [], team: [], services: [], tzItems: [], roles: [], cadences: [], weeks: [], conns: [] };
@@ -1715,10 +1837,13 @@ class Component extends DCLogic {
     if (!/^\S+@\S+\.\S+$/.test(m.to.trim())) return this.setState({ mail: { ...m, err: 'Add a valid email address in To.' } });
     if (!m.subject.trim() && !m.body.replace(m.sig || SIG, '').trim()) return this.setState({ mail: { ...m, err: 'Write a subject or a message before sending.' } });
     const snap = this.state.data, it = m.item, firstLine = m.body.replace(m.sig || SIG, '').trim().split('\n')[0].slice(0, 140);
+    if (RX && m.files.length) return this.setState({ mail: { ...m, err: 'Attachments aren’t available yet. Remove them to send.' } });
     let d = this.withNote(snap, it.type, it.id, 'email', (m.subject.trim() ? 'Sent “' + m.subject.trim() + '”' : 'Sent an email') + (firstLine ? '. ' + firstLine : '') + (m.files.length ? ' (' + m.files.length + (m.files.length === 1 ? ' attachment' : ' attachments') + ')' : ''));
     if (m.followDone && m.hasDue) { const r0 = this.rec(it.type, it.id, d); if (r0) d = this.patch(it.type, it.id, { next: r0.cadence ? addDays(TODAY, r0.cadence) : null }, d); }
+    d = { ...d, notes: d.notes.map((n, i) => i === 0 ? { ...n, via: 'email' } : n) };
     this.setState({ data: d, mail: null });
-    this.flash({ msg: 'Email sent to ' + m.toName, sub: m.followDone && m.hasDue ? 'Logged on the timeline · follow-up marked done' : 'Logged on the timeline', action: 'Undo send', run: () => this.setState({ data: snap, mail: m }) });
+    const out = RX && setTimeout(() => this.send('email.send', { contact_id: it.type === 'contact' ? it.id : null, company_id: it.type === 'company' ? it.id : null, to: m.to.trim(), subject: m.subject, body: m.body }), 5000);
+    this.flash({ msg: 'Email sent to ' + m.toName, sub: m.followDone && m.hasDue ? 'Logged on the timeline · follow-up marked done' : 'Logged on the timeline', action: 'Undo send', run: () => { clearTimeout(out); this.setState({ data: snap, mail: m }); } });
   }
   mailV() {
     const m = this.state.mail; if (!m) return { open: false, tpls: [], files: [] };
@@ -1742,6 +1867,7 @@ class Component extends DCLogic {
   }
   saveNote(type, id) {
     const body = this.state.composer.trim(), att = this.state.att.note; if (!body && !att.length) return;
+    if (RX && att.length) { this.flash({ msg: 'Attachments aren’t available yet', sub: 'Remove them to save the note.' }); return; }
     const kind = this.state.nk;
     this.setState(s => ({ data: this.withNote(s.data, type, id, kind, body, att), composer: '', att: { ...s.att, note: [] } }));
     this.flash({ msg: NK[kind][0] + ' logged', sub: [att.length ? att.length + (att.length === 1 ? ' attachment' : ' attachments') : '', kind !== 'note' && type === 'contact' ? 'Last contact updated to today' : ''].filter(Boolean).join(' · ') });
@@ -2394,104 +2520,6 @@ class Component extends DCLogic {
     return base;
   }
 }
-// Database bridge for the approved V3.  It deliberately lives beside the prototype
-// logic so visual/layout code remains untouched.
-Component.prototype.saveToRolodex = async function(action, data, snap, after) {
-  try {
-    const res = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, data }) });
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok || !out.ok) throw new Error(out.error || 'That didn’t save. Try again.');
-    if (after) after(out);
-    return out;
-  } catch (err) {
-    this.setState({ data: snap });
-    this.flash({ msg: 'Couldn’t save', sub: err.message || 'Try again.' });
-    return null;
-  }
-};
-Component.prototype.contactSaveData = function(c, d) {
-  const co = c.companyId && d.companies.find(x => x.id === c.companyId);
-  return { id: c.id, first_name: c.first, last_name: c.lastName || c.name.slice(c.first.length).trim(), job_title: c.title, kinds: c.kind ? [c.kind] : [], phones: c.phone ? [{ value: c.phone }] : [], emails: c.email ? [{ value: c.email }] : [], city: c.city, keep_in_touch: c.cadence, next_follow_up: c.next, companies: co ? [{ id: co.id, title: c.title }] : [] };
-};
-const v3SaveNote = Component.prototype.saveNote;
-Component.prototype.saveNote = function(type, id) {
-  const snap = this.state.data, body = this.state.composer.trim(), kind = this.state.nk;
-  if (this.state.att.note.length) { this.flash({ msg: 'Attachments are not available yet', sub: 'Your note was not saved.' }); return; }
-  v3SaveNote.call(this, type, id);
-  if (!body) return;
-  const newest = this.state.data.notes.find(n => String(n.id).startsWith('new'));
-  this.saveToRolodex('note.add', { kind, body, happened_on: TODAY, touch: kind !== 'note', contact_id: type === 'contact' ? id : null, company_id: type === 'company' ? id : null, opportunity_id: type === 'project' ? id : null }, snap, out => {
-    this.setState(s => ({ data: { ...s.data, notes: s.data.notes.map(n => n === newest ? { ...n, id: out.id } : n) } }));
-  });
-};
-const v3EditNote = Component.prototype.saveEditNote;
-Component.prototype.saveEditNote = function(auto) {
-  const e = this.state.editNote, snap = this.state.data; if (!e || this.state.att.edit.length) { if (e && this.state.att.edit.length) this.flash({ msg: 'Attachments are not available yet' }); return; }
-  v3EditNote.call(this, auto); const note = this.state.data.notes.find(n => n.id === e.id);
-  if (note) this.saveToRolodex('note.save', { id: e.id, body: note.body }, snap);
-};
-const v3DeleteNote = Component.prototype.deleteNote;
-Component.prototype.deleteNote = function(id) { const snap = this.state.data; v3DeleteNote.call(this, id); this.saveToRolodex('note.delete', { id }, snap); };
-const v3Snooze = Component.prototype.snooze;
-Component.prototype.snooze = function(item, date) { const snap = this.state.data; v3Snooze.call(this, item, date); this.saveToRolodex('followup.set', { type: item.type, id: item.id, date }, snap); };
-const v3SetNext = Component.prototype.setNext;
-Component.prototype.setNext = function(item, date) { const snap = this.state.data; v3SetNext.call(this, item, date); this.saveToRolodex('followup.set', { type: item.type, id: item.id, date }, snap); };
-const v3Finish = Component.prototype.finish;
-Component.prototype.finish = function(item, kind, snapArg) {
-  const snap = snapArg || this.state.data; v3Finish.call(this, item, kind, snapArg);
-  this.saveToRolodex('followup.done', { type: item.type, id: item.id, next: item.cadence ? addDays(TODAY, item.cadence) : null }, snap, out => {
-    if (kind) this.saveToRolodex('note.add', { kind, body: 'Followed up', happened_on: TODAY, touch: true, contact_id: item.type === 'contact' ? item.id : null, company_id: item.type === 'company' ? item.id : null, opportunity_id: item.type === 'project' ? item.id : null }, snap);
-  });
-};
-const v3Cadence = Component.prototype.setCadence;
-Component.prototype.setCadence = function(id, cadence) { const snap = this.state.data; v3Cadence.call(this, id, cadence); const c = this.state.data.contacts.find(x => x.id === id); this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
-const v3AddLink = Component.prototype.addLink;
-Component.prototype.addLink = function(id) { const snap = this.state.data; v3AddLink.call(this, id); const c = this.state.data.contacts.find(x => x.id === id); if (c) this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
-const v3RemoveLink = Component.prototype.removeLink;
-Component.prototype.removeLink = function(id, link) { const snap = this.state.data; v3RemoveLink.call(this, id, link); const c = this.state.data.contacts.find(x => x.id === id); if (c) this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
-const v3MoveDeal = Component.prototype.moveDeal;
-Component.prototype.moveDeal = function(id, stage) { const snap = this.state.data; v3MoveDeal.call(this, id, stage); this.saveToRolodex('opportunity.move', { id, stage }, snap); };
-const v3ToggleTodo = Component.prototype.toggleTodo;
-Component.prototype.toggleTodo = function(id) { const snap = this.state.data, old = snap.todos.find(t => t.id === id); v3ToggleTodo.call(this, id); if (old) this.saveToRolodex('todo.done', { id, done: !old.done }, snap); };
-const v3DeleteTodo = Component.prototype.deleteTodo;
-Component.prototype.deleteTodo = function(id) { const snap = this.state.data; v3DeleteTodo.call(this, id); this.saveToRolodex('todo.delete', { id }, snap); };
-const v3DropTodo = Component.prototype.dropTodo;
-Component.prototype.dropTodo = function(target, patch) { const snap = this.state.data; const id = this.state.dragTodo; v3DropTodo.call(this, target, patch); const t = this.state.data.todos.find(x => x.id === id); if (t) this.saveToRolodex('todo.save', this.todoSaveData(t), snap); };
-Component.prototype.todoSaveData = function(t) { return { id: t.id, title: t.text, notes: t.desc, due: t.due, high: t.prio === 1, assigned_to: (this.state.prefs.team.find(x => x.k === t.who) || {}).id, contact_id: t.link && t.link.type === 'contact' ? t.link.id : null, company_id: t.link && t.link.type === 'company' ? t.link.id : null, subtasks: t.subtasks, comments: t.comments, position: t.order }; };
-const v3SaveNew = Component.prototype.saveNew;
-Component.prototype.saveNew = function() {
-  const snap = this.state.data, before = new Set(snap.contacts.map(x => x.id)); v3SaveNew.call(this);
-  const c = this.state.data.contacts.find(x => !before.has(x.id)); if (!c) return;
-  const co = c.companyId && this.state.data.companies.find(x => x.id === c.companyId), companyWasNew = co && !snap.companies.some(x => x.id === co.id);
-  const data = this.contactSaveData(c, this.state.data); delete data.id; data.companies = co ? [{ id: companyWasNew ? null : co.id, name: co.name, title: c.title }] : [];
-  this.saveToRolodex('contact.save', data, snap, out => this.setState(s => ({ contactId: out.id, data: { ...s.data, companies: s.data.companies.map(x => x.id === c.companyId && out.companyId ? { ...x, id: out.companyId } : x), contacts: s.data.contacts.map(x => x.id === c.id ? { ...x, id: out.id, companyId: out.companyId || x.companyId } : x) } })));
-};
-const v3SubmitTodo = Component.prototype.submitEd;
-Component.prototype.submitEd = function() {
-  const snap = this.state.data, before = new Set(snap.todos.map(x => x.id)); v3SubmitTodo.call(this);
-  const t = this.state.data.todos.find(x => !before.has(x.id)); if (t) this.saveToRolodex('todo.save', this.todoSaveData(t), snap, out => this.setState(s => ({ data: { ...s.data, todos: s.data.todos.map(x => x.id === t.id ? { ...x, id: out.id } : x) } })));
-};
-const v3SaveDeal = Component.prototype.saveDeal;
-Component.prototype.saveDeal = function() {
-  const snap = this.state.data, before = new Set(snap.deals.map(x => x.id)); v3SaveDeal.call(this);
-  const deal = this.state.data.deals.find(x => !before.has(x.id)); if (!deal) return;
-  const co = this.state.data.companies.find(x => x.id === deal.companyId), companyWasNew = co && !snap.companies.some(x => x.id === co.id), owner = this.state.prefs.team.find(x => x.k === deal.owner);
-  this.saveToRolodex('opportunity.save', { name: deal.name, company_id: co && !companyWasNew ? co.id : null, company: co && companyWasNew ? co.name : '', contact_id: deal.contactId, value: deal.value, stage: deal.stage, close_date: deal.close, next_follow_up: deal.next, owner_id: owner && owner.id }, snap, out => this.setState(s => ({ data: { ...s.data, companies: s.data.companies.map(x => x.id === deal.companyId && out.companyId ? { ...x, id: out.companyId } : x), deals: s.data.deals.map(x => x.id === deal.id ? { ...x, id: out.id, companyId: out.companyId || x.companyId } : x) } })));
-};
-const v3SendMail = Component.prototype.sendMail;
-Component.prototype.sendMail = function() {
-  const snap = this.state.data, m = this.state.mail; if (!m) return; const d = this.state.data, contact = m.item.type === 'contact' ? m.item.id : null, company = m.item.type === 'company' ? m.item.id : null;
-  v3SendMail.call(this); this.saveToRolodex('email.send', { contact_id: contact, company_id: company, to: m.to, subject: m.subject, body: m.body }, snap);
-};
-const v3SetPref = Component.prototype.setPref;
-Component.prototype.setPref = function(p) {
-  v3SetPref.call(this, p); clearTimeout(this._v3PrefTimer); this._v3PrefTimer = setTimeout(() => {
-    const pref = this.state.prefs;
-    if ('services' in p) this.saveToRolodex('settings.services', { services: pref.services }, this.state.data);
-    if ('name' in p || 'phone' in p || 'signature' in p) this.saveToRolodex('me.save', { name: pref.name, phone: pref.phone, signature: pref.signature }, this.state.data);
-    if ('team' in p) pref.team.forEach(member => { if (!member.id) return; this.saveToRolodex('user.active', { id: member.id, active: member.active }, this.state.data); this.saveToRolodex('user.save', { id: member.id, name: TEAM[member.k], email: member.email, role: member.role === 'Owner' ? 'owner' : 'sales' }, this.state.data); });
-  }, 300);
-};
 </script>
 </body>
 </html>

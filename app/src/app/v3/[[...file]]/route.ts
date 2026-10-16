@@ -16,10 +16,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ fil
     return new Response("window.RX_DATA = " + JSON.stringify(await v3Data()) + ";", { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
   }
   const relative = parts.length ? parts.join("/") : "index.html";
-  if (!/^[A-Za-z0-9._/-]+$/.test(relative) || relative.includes("..") || relative.startsWith("data/")) return new Response("Not found", { status: 404 });
+  // Only V3's own files: the page, its component files, its runtime and its assets. Nothing else in the project folder.
+  const allowed = relative === "index.html" || relative === "support.js" || /^[A-Za-z]+\.dc\.html$/.test(relative) || /^assets\/[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*\.(png|svg|webp|jpg|jpeg)$/.test(relative);
+  if (!allowed) return new Response("Not found", { status: 404 });
   try {
     const file = path.resolve(ROOT, relative); if (!file.startsWith(ROOT + path.sep)) return new Response("Not found", { status: 404 });
-    const body = await readFile(file);
-    return new Response(body, { headers: { "content-type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "cache-control": path.extname(file) === ".html" ? "no-store" : "public, max-age=3600" } });
+    const raw = await readFile(file);
+    // The page lives at /v3 (no trailing slash), so tell it where its own files are.
+    const body = relative === "index.html" ? raw.toString("utf8").replace("<head>", '<head>\n<base href="/v3/">') : raw;
+    return new Response(body as BodyInit, { headers: { "content-type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream", "cache-control": path.extname(file) === ".html" ? "no-store" : "public, max-age=3600" } });
   } catch { return new Response("Not found", { status: 404 }); }
 }

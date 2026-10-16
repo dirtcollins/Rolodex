@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const res = (to: string) => new Response(null, { status: 303, headers: { Location: to } });
   if (!cookie || cookie === "short") {
     await new Promise((r) => setTimeout(r, 1000)); // a wrong try waits a second
-    return res("/login?error=" + (cookie === "short" ? "short" : "1") + (next !== "/dashboard" ? "&next=" + encodeURIComponent(next) : ""));
+    return res("/login?error=" + (cookie === "short" ? "short" : "1") + (next !== "/v3" ? "&next=" + encodeURIComponent(next) : ""));
   }
   const r = res(next), o = cookieOptions();
   r.headers.append("Set-Cookie", `${SESSION_COOKIE}=${cookie}; Path=${o.path}; Max-Age=${o.maxAge}; HttpOnly; SameSite=Lax${o.secure ? "; Secure" : ""}`);
