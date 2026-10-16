@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { session } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { FOLLOWUPS_DUE_SQL } from "@/lib/data";
@@ -20,7 +22,11 @@ import { Suspense } from "react";
 // The frame around every screen (Light Ops' shell): sidebar, top bar with search, phone bars, toasts.
 export async function Shell({ children }: { children: React.ReactNode }) {
   const s = await session();
-  if (!s) return <>{children}<Toasts /></>;
+  if (!s) {
+    const requestPath = (await headers()).get("x-rolodex-path") ?? "/";
+    if (!requestPath.startsWith("/login")) redirect("/login" + (requestPath === "/" ? "" : "?next=" + encodeURIComponent(requestPath)));
+    return <>{children}<Toasts /></>;
+  }
   const counts = (await one<{ contacts: number; companies: number; todos: number; deals: number; followups: number }>(`select
     (select count(*)::int from contacts where deleted_at is null) as contacts,
     (select count(*)::int from companies where deleted_at is null) as companies,
