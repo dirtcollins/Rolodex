@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+</helmet>
+<div onClick="{{ swallow }}" style="width:100%; user-select:none;">
+  <div style="display:flex; align-items:center; gap:4px; padding:2px 2px 8px 6px;">
+    <span style="flex:1; font-size:13.5px; font-weight:650; letter-spacing:-.01em;">{{ title }}</span>
+    <button onClick="{{ onToday }}" style="height:26px; padding:0 8px; border:0; background:transparent; border-radius:6px; font-size:12px; font-weight:550; color:#2F5BEA; cursor:pointer;" style-hover="background:#EEF2FE">Today</button>
+    <button onClick="{{ prev }}" aria-label="Previous month" style="width:26px; height:26px; border:0; background:transparent; border-radius:6px; display:grid; place-items:center; color:{{ prevFg }}; cursor:pointer;" style-hover="background:#F1F0EC"><i class="icon-chevron-left" style="font-size:15px;"></i></button>
+    <button onClick="{{ next }}" aria-label="Next month" style="width:26px; height:26px; border:0; background:transparent; border-radius:6px; display:grid; place-items:center; color:#55565C; cursor:pointer;" style-hover="background:#F1F0EC"><i class="icon-chevron-right" style="font-size:15px;"></i></button>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:2px;">
+    <sc-for list="{{ dows }}" as="d" hint-placeholder-count="7"><span style="height:22px; display:grid; place-items:center; font-size:11px; font-weight:600; color:#9A9BA1;">{{ d }}</span></sc-for>
+  </div>
+  <div role="grid" aria-label="{{ title }}" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
+    <sc-for list="{{ cells }}" as="c" hint-placeholder-count="42">
+      <button onClick="{{ c.onClick }}" aria-label="{{ c.label }}" aria-pressed="{{ c.pressed }}" style="height:32px; border:0; border-radius:8px; background:{{ c.bg }}; box-shadow:{{ c.ring }}; color:{{ c.fg }}; font-size:13px; font-weight:{{ c.fw }}; font-variant-numeric:tabular-nums; cursor:{{ c.cursor }}; padding:0;" style-hover="background:{{ c.hover }}">{{ c.n }}</button>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:260,&quot;height&quot;:280},&quot;value&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2026-10-20&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;min&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2026-10-15&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;today&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2026-10-15&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;onPick&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(ymd: string) =&gt; void&quot;}}">
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+class Component extends DCLogic {
+  state = { ym: null };
+  componentDidUpdate(prev) { if (prev.value !== this.props.value && this.props.value) this.setState({ ym: null }); }
+  renderVals() {
+    const p = this.props, today = p.today || '2026-10-15', val = p.value || '', min = p.min || '';
+    const base = this.state.ym || (val || today).slice(0, 7), [Y, M] = base.split('-').map(Number);
+    const ws = Number(p.weekStart) === 1 ? 1 : 0, startDow = (new Date(Date.UTC(Y, M - 1, 1)).getUTCDay() - ws + 7) % 7;
+    const stop = e => e && e.stopPropagation && e.stopPropagation();
+    const cells = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(Date.UTC(Y, M - 1, 1 - startDow + i)), s = d.toISOString().slice(0, 10), inM = d.getUTCMonth() === M - 1;
+      const dis = !!min && s < min, sel = s === val, isT = s === today;
+      cells.push({ n: String(d.getUTCDate()), label: s, pressed: sel ? 'true' : 'false',
+        bg: sel ? '#2F5BEA' : 'transparent', fg: sel ? '#fff' : dis ? '#D3D0C7' : !inM ? '#B5B3AC' : isT ? '#2F5BEA' : '#17181C',
+        fw: sel || isT ? 650 : 450, ring: isT && !sel ? 'inset 0 0 0 1.5px #C9D6FB' : 'none', cursor: dis ? 'default' : 'pointer', hover: sel ? '#2450D6' : dis ? 'transparent' : '#F1F0EC',
+        onClick: e => { stop(e); if (!dis && p.onPick) p.onPick(s); } });
+    }
+    const shift = n => e => { stop(e); const d = new Date(Date.UTC(Y, M - 1 + n, 1)); this.setState({ ym: d.toISOString().slice(0, 7) }); };
+    const canPrev = !min || base > min.slice(0, 7);
+    return { title: MONTHS[M - 1] + ' ' + Y, dows: ws ? ['M','T','W','T','F','S','S'] : ['S','M','T','W','T','F','S'], cells, swallow: stop,
+      prev: canPrev ? shift(-1) : stop, prevFg: canPrev ? '#55565C' : '#D3D0C7', next: shift(1),
+      onToday: e => { stop(e); this.setState({ ym: null }); if (p.onPick) p.onPick(today); } };
+  }
+}
+</script>
+</body>
+</html>

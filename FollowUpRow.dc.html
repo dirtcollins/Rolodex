@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+</helmet>
+<div style="position:relative; opacity:{{ f.opacity }}; max-height:{{ f.maxH }}; overflow:{{ f.overflow }}; transition:opacity .22s ease, max-height .3s ease;">
+  <div onClick="{{ f.onOpen }}" style="display:flex; align-items:center; gap:12px; padding:10px; margin:0 -10px; border-radius:10px; cursor:pointer; transition:background .12s;" style-hover="background:#F6F5F1">
+    <span style="width:36px; height:36px; flex:none; border-radius:{{ f.avRadius }}; background:{{ f.avBg }} center/cover no-repeat; background-image:{{ f.avImg }}; color:{{ f.avFg }}; display:grid; place-items:center; font-size:12.5px; font-weight:600; letter-spacing:.01em;">{{ f.initials }}</span>
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+        <span style="font-size:14.5px; font-weight:550; color:#17181C; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-.01em;">{{ f.name }}</span>
+        <span style="flex:none; display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600; padding:2px 7px; border-radius:6px; background:{{ f.toneBg }}; color:{{ f.toneFg }};">{{ f.reason }}</span>
+      </div>
+      <div style="font-size:13px; color:#6E6F76; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;">{{ f.sub }}</div>
+    </div>
+    <sc-if value="{{ f.isOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; align-items:center; gap:2px; flex:none;">
+        <sc-if value="{{ f.showReach }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ f.onCall }}" aria-label="Call" title="Call" style="width:32px; height:32px; border:0; background:transparent; border-radius:8px; color:#6E6F76; display:grid; place-items:center; cursor:pointer;" style-hover="background:#EEF2FE; color:#2F5BEA"><i class="icon-phone" style="font-size:15px;"></i></button>
+          <button onClick="{{ f.onEmail }}" aria-label="Email" title="Email" style="width:32px; height:32px; border:0; background:transparent; border-radius:8px; color:#6E6F76; display:grid; place-items:center; cursor:pointer;" style-hover="background:#EEF2FE; color:#2F5BEA"><i class="icon-mail" style="font-size:15px;"></i></button>
+          <span style="width:1px; height:18px; background:#E7E5DF; margin:0 6px;"></span>
+        </sc-if>
+        <button onClick="{{ f.onDone }}" style="height:32px; padding:0 11px; border:1px solid #E3E1DA; background:#fff; border-radius:8px; font-size:13px; font-weight:550; color:#17181C; display:flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 1px 1px rgba(23,24,28,.04);" style-hover="border-color:#2F5BEA; color:#2F5BEA"><i class="icon-check" style="font-size:14px;"></i>Done</button>
+        <button onClick="{{ f.onLater }}" style="height:32px; padding:0 10px; border:0; background:transparent; border-radius:8px; font-size:13px; font-weight:500; color:#55565C; cursor:pointer;" style-hover="background:#EFEDE8">Later</button>
+      </div>
+    </sc-if>
+  </div>
+  <sc-if value="{{ f.isHow }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:2px 0 12px 48px;">
+      <span style="font-size:12.5px; color:#6E6F76; margin-right:2px;">How did you reach out?</span>
+      <sc-for list="{{ f.how }}" as="h" hint-placeholder-count="4">
+        <button onClick="{{ h.onClick }}" style="height:28px; padding:0 10px; border:1px solid #E3E1DA; background:#fff; border-radius:7px; font-size:12.5px; font-weight:550; color:#2A2B30; display:flex; align-items:center; gap:5px; cursor:pointer;" style-hover="border-color:#2F5BEA; color:#2F5BEA; background:#F5F7FE"><i class="icon-{{ h.icon }}" style="font-size:13px;"></i>{{ h.label }}</button>
+      </sc-for>
+      <button onClick="{{ f.onSkip }}" style="height:28px; padding:0 8px; border:0; background:transparent; font-size:12.5px; color:#6E6F76; cursor:pointer; border-radius:7px;" style-hover="color:#17181C; background:#EFEDE8">Skip</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{ f.laterOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; right:0; top:calc(100% - 6px); z-index:30; width:232px; padding:6px; background:#fff; border:1px solid #E7E5DF; border-radius:12px; box-shadow:0 12px 40px rgba(23,24,28,.14), 0 2px 6px rgba(23,24,28,.06);">
+      <div style="font-size:11.5px; font-weight:600; color:#8A8B91; padding:6px 8px 4px; letter-spacing:.02em;">Follow up again</div>
+      <sc-for list="{{ f.later }}" as="o" hint-placeholder-count="4">
+        <button onClick="{{ o.onClick }}" style="width:100%; display:flex; justify-content:space-between; align-items:center; height:34px; padding:0 8px; border:0; background:transparent; border-radius:7px; font-size:13.5px; color:#17181C; cursor:pointer;" style-hover="background:#F3F2EE"><span>{{ o.label }}</span><span style="font-size:12.5px; color:#8A8B91;">{{ o.sub }}</span></button>
+      </sc-for>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:640,&quot;height&quot;:120},&quot;f&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rolodex work status</title>
+    <style>
+      :root { color-scheme: light; --ink:#202936; --muted:#657184; --line:#dce3ec; --page:#f6f8fb; --card:#fff; --blue:#2864d7; --green:#087b54; --amber:#9c6200; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--page); color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      main { max-width:1000px; margin:0 auto; padding:48px 24px 72px; }
+      h1 { margin:0; font-size:30px; letter-spacing:-.03em; }
+      .updated { margin:6px 0 32px; color:var(--muted); }
+      .overview { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+      .metric, .item { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 2px rgba(28,39,55,.03); }
+      .metric { padding:18px; }
+      .metric b { display:block; font-size:27px; line-height:1.05; letter-spacing:-.04em; }
+      .metric span { color:var(--muted); font-size:13px; }
+      h2 { margin:30px 0 12px; font-size:17px; }
+      .list { display:grid; gap:10px; }
+      .item { display:grid; grid-template-columns:12px 1fr auto; align-items:start; gap:12px; padding:16px 18px; }
+      .dot { width:10px; height:10px; border-radius:50%; margin-top:6px; background:var(--green); }
+      .active .dot { background:var(--amber); }
+      .title { font-weight:700; }
+      .detail { margin-top:3px; color:var(--muted); font-size:13px; }
+      .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:700; color:var(--green); background:#e7f7ef; }
+      .active .badge { color:var(--amber); background:#fff3dc; }
+      .rules { margin:0; padding-left:19px; color:var(--muted); }
+      .rules li + li { margin-top:6px; }
+      a { color:var(--blue); }
+      @media (max-width:640px) { main { padding:32px 16px 48px; } .overview { grid-template-columns:1fr; } .item { grid-template-columns:12px 1fr; } .badge { grid-column:2; justify-self:start; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Rolodex work status</h1>
+      <p class="updated">Updated October 15, 2026 · Local development workspace</p>
+
+      <section class="overview" aria-label="Progress overview">
+        <div class="metric"><b>10</b><span>completed improvements</span></div>
+        <div class="metric"><b>4</b><span>completed specialist passes</span></div>
+        <div class="metric"><b>0</b><span>records in Recently Deleted</span></div>
+      </section>
+
+      <h2>Completed</h2>
+      <section class="list">
+        <article class="item"><span class="dot"></span><div><div class="title">Accurate navigation counts</div><div class="detail">The sidebar now shows active totals: 230 contacts and 365 companies.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Recently Deleted emptied</div><div class="detail">All 1,735 previously deleted records were permanently removed. The screen now confirms 0 deleted records.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Pipeline hand-tool panning</div><div class="detail">Spacebar drag pans scrollable areas without triggering focus states, text editing, clicks, or card drag behavior. The desktop pipeline scrollbar is hidden.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Page-header cleanup</div><div class="detail">Secondary subtitle lines below standard page titles have been removed throughout Rolodex.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Your profile photo</div><div class="detail">Brendan Collins now has local WebP avatars: 74 × 74 for the 37 px sidebar and 112 × 112 for the 56 px account profile.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Company avatars</div><div class="detail">All 365 companies have local 64 px, 104 px, and 160 px avatar assets. 68 have a verified official logo; the rest retain clean initials until a source can be confirmed.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Business information audit</div><div class="detail">24 verified official-domain business emails, 7 official websites, and 3 business phones were added with sources recorded. Existing verified details were preserved.</div></div><span class="badge">Done</span></article>
+      </section>
+
+      <h2>Enrichment passes completed</h2>
+      <section class="list">
+        <article class="item"><span class="dot"></span><div><div class="title">Company research</div><div class="detail">Added 7 verified official websites, 24 official-domain general business emails, and 3 business phones with source records. Identity-ambiguous blank records remain unchanged for review.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Company logos</div><div class="detail">Google/Bing-assisted official-source discovery expanded the verified-logo set. Source URLs, verification status, and check dates are stored in the central logo audit.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Contact photos</div><div class="detail">60 high-confidence contact photos are local WebP assets at 64 px, 104 px, and 160 px. This includes verified LinkedIn profiles and Google-discovered official company biographies. Ambiguous photos were held for manual review.</div></div><span class="badge">Done</span></article>
+        <article class="item"><span class="dot"></span><div><div class="title">Verification and image processing</div><div class="detail">405 avatar records passed the WebP/dimension and renderer-fallback checks. Source provenance was merged for the 11 previously unintegrated verified logos.</div></div><span class="badge">Done</span></article>
+      </section>
+
+      <h2>Quality rules</h2>
+      <ul class="rules">
+        <li>Images are stored in the application, use WebP, and have fixed dimensions to avoid layout shift.</li>
+        <li>People are matched with more than a name: company, location, or other corroborating details are required.</li>
+        <li>Company information and logos are only added from a verified source and never replace verified record details.</li>
+      </ul>
+      <p><a href="/dashboard">Return to Rolodex</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function NotFound(){return <div className="error-page"><h1>We couldn’t find that page</h1><p>The record may have moved or been deleted. Check Recently Deleted to restore a record.</p><div className="page-acts"><Link className="btn btn-primary" href="/dashboard">Go to dashboard</Link><Link className="btn" href="/deleted">Recently Deleted</Link></div></div>;}

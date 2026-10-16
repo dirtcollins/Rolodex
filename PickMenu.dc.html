@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+<style>[data-rx-menu]::-webkit-scrollbar{display:none;width:0;height:0}</style>
+</helmet>
+<sc-if value="{{ m.open }}" hint-placeholder-val="{{ false }}">
+<div data-rx-menu="" onClick="{{ m.stop }}" style="position:absolute; left:{{ m.left }}; right:{{ m.right }}; top:calc(100% + 6px); z-index:90; width:{{ m.width }}; display:{{ m.display }}; grid-template-columns:236px 1fr; gap:6px; max-height:min(400px,70vh); overflow-y:auto; overflow-x:hidden; scrollbar-width:none; padding:6px; background:#fff; border:1px solid #E7E5DF; border-radius:12px; box-shadow:0 14px 44px rgba(23,24,28,.16), 0 2px 6px rgba(23,24,28,.06); text-align:left;">
+  <sc-if value="{{ m.hasSearch }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; align-items:center; gap:8px; height:34px; padding:0 8px; margin-bottom:4px; border-bottom:1px solid #F0EEE9;">
+      <i class="icon-search" style="font-size:14px; color:#9A9BA1;"></i>
+      <input value="{{ m.q }}" onChange="{{ m.onQ }}" placeholder="{{ m.placeholder }}" autofocus style="flex:1; min-width:0; border:0; outline:none; background:transparent; font-size:13.5px;">
+    </div>
+  </sc-if>
+  <div style="min-width:0;"><sc-for list="{{ m.items }}" as="o" hint-placeholder-count="4">
+    <button onClick="{{ o.onClick }}" style="width:100%; display:flex; align-items:center; gap:9px; height:34px; padding:0 8px; border:0; background:transparent; border-radius:7px; font-size:13.5px; color:#17181C; cursor:pointer; text-align:left;" style-hover="background:#F3F2EE">
+      <sc-if value="{{ o.hasPhoto }}" hint-placeholder-val="{{ false }}"><span role="img" aria-hidden="true" style="width:22px; height:22px; flex:none; margin:0 -3px; border-radius:50%; background:#ECEBE6 center/cover no-repeat; background-image:{{ o.photo }}; box-shadow:0 0 0 1px rgba(23,24,28,.06);"></span></sc-if><sc-if value="{{ o.noPhoto }}" hint-placeholder-val="{{ true }}"><i class="icon-{{ o.icon }}" style="font-size:15px; color:{{ o.iconFg }}; width:16px;"></i></sc-if>
+      <span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ o.label }}</span>
+      <span style="font-size:12px; color:#8A8B91; white-space:nowrap;">{{ o.sub }}</span>
+      <i class="icon-check" style="font-size:14px; color:#2F5BEA; opacity:{{ o.checkOpacity }};"></i>
+    </button>
+  </sc-for></div>
+  <sc-if value="{{ m.hasDate }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:6px 4px 2px 10px; border-left:1px solid #F0EEE9;">
+      <dc-import name="DatePicker" value="{{ m.date }}" min="2026-10-15" week-start="{{ m.week }}" on-pick="{{ m.onPickDate }}" hint-size="100%,262px"></dc-import>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:300,&quot;height&quot;:260},&quot;m&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

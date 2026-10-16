@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+</helmet>
+<div style="position:relative; border-bottom:1px solid {{ t.sep }};">
+  <sc-if value="{{ t.dropLine }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; left:0; right:0; top:-2px; height:2px; background:#2F5BEA; border-radius:2px; z-index:2;"></span></sc-if>
+  <div draggable="{{ t.draggable }}" onDragStart="{{ t.onDragStart }}" onDragOver="{{ t.onDragOver }}" onDrop="{{ t.onDrop }}" onDragEnd="{{ t.onDragEnd }}" onClick="{{ t.onOpen }}" style="display:flex; align-items:flex-start; gap:11px; padding:10px 8px; margin:0 -8px; border-radius:9px; cursor:pointer; opacity:{{ t.rowOpacity }}; transition:opacity .25s, background .12s;" style-hover="background:#F8F7F4">
+    <button onClick="{{ t.onToggle }}" aria-label="{{ t.toggleLabel }}" style="width:20px; height:20px; margin-top:1px; flex:none; border-radius:50%; border:1.75px solid {{ t.ring }}; background:{{ t.boxBg }}; color:{{ t.checkFg }}; display:grid; place-items:center; padding:0; cursor:pointer; transition:background .15s, color .15s;" style-hover="color:{{ t.hoverFg }}; background:{{ t.hoverBg }}"><i class="icon-check" style="font-size:12px; color:inherit;"></i></button>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:14.5px; color:{{ t.textFg }}; text-decoration:{{ t.deco }}; line-height:1.4; text-wrap:pretty;">{{ t.text }}</div>
+      <sc-if value="{{ t.hasDesc }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px; color:#8A8B91; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;">{{ t.desc }}</div></sc-if>
+      <sc-if value="{{ t.hasMeta }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:4px; font-size:12.5px; color:#6E6F76;">
+          <sc-if value="{{ t.hasDue }}" hint-placeholder-val="{{ true }}"><span style="color:{{ t.dueFg }}; display:inline-flex; align-items:center; gap:4px; font-weight:{{ t.dueWeight }};"><i class="icon-calendar" style="font-size:12px;"></i>{{ t.due }}<sc-if value="{{ t.hasRepeat }}" hint-placeholder-val="{{ false }}"><i class="icon-repeat" style="font-size:11px; margin-left:2px;"></i></sc-if></span></sc-if>
+          <sc-if value="{{ t.hasSubs }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:4px;"><i class="icon-list-checks" style="font-size:12px;"></i>{{ t.subs }}</span></sc-if>
+          <sc-if value="{{ t.hasComments }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:4px;"><i class="icon-message-circle" style="font-size:12px;"></i>{{ t.comments }}</span></sc-if>
+          <sc-if value="{{ t.hasLink }}" hint-placeholder-val="{{ false }}"><button onClick="{{ t.onLink }}" style="display:inline-flex; align-items:center; gap:4px; border:0; background:transparent; padding:0; font-size:12.5px; color:#55565C; cursor:pointer;" style-hover="color:#2F5BEA"><i class="icon-{{ t.linkIcon }}" style="font-size:12px;"></i>{{ t.link }}</button></sc-if>
+        </div>
+      </sc-if>
+    </div>
+    <sc-if value="{{ t.hasPrio }}" hint-placeholder-val="{{ false }}"><i class="icon-flag" title="{{ t.prioLabel }}" style="font-size:13px; color:{{ t.ring }}; margin-top:4px;"></i></sc-if>
+    <sc-if value="{{ t.showWho }}" hint-placeholder-val="{{ false }}">
+      <span title="{{ t.whoName }}" style="width:22px; height:22px; flex:none; border-radius:50%; background:{{ t.whoBg }} center/cover no-repeat; background-image:{{ t.whoImg }}; color:{{ t.whoFg }}; display:grid; place-items:center; font-size:10px; font-weight:650; margin-top:1px;">{{ t.who }}</span>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:520,&quot;height&quot;:72},&quot;t&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

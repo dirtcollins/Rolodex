@@ -1,0 +1,17 @@
+/* The To-dos page's own bits (globals.css has the rows: todo-list, todo, todo-check, todo-copy). */
+
+.todo-add{display:flex;gap:10px;align-items:center;padding:12px;margin-bottom:4px}
+.todo-add .in:first-child{flex:1 1 200px;min-width:0}
+.todo-add .in[type=date]{flex:0 0 165px;width:165px}
+.todo-list.todo-group{padding:2px 18px}
+.todo-group .icon-btn{margin-top:-7px}
+.todo-open{cursor:pointer}
+.todo-notes{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px;color:var(--muted);font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.section-title.is-late h2{color:var(--bad)}
+
+@media (max-width:820px){
+  .todo-add{flex-wrap:wrap}
+  .todo-add .in:first-child{flex-basis:100%}
+  .todo-add .in[type=date]{flex:1 1 auto;width:auto}
+  .todo-list.todo-group{padding:2px 12px}
+}

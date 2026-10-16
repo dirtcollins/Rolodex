@@ -1,0 +1,10 @@
+/* The Activities page's own bits (globals.css has the parts: timeline, tap, toolbar, search-item). */
+
+/* One card per day; each entry opens what it's about. */
+.act-day .timeline{margin:0}
+.act-day .timeline li:first-child{border-top:0}
+.act-day .timeline-meta strong{color:var(--ink);font-weight:600;font-size:13.5px}
+.act-day .timeline-meta a{color:var(--accent)}
+.act-day .timeline-meta a:hover{text-decoration:underline}
+.act-day .timeline-body{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.act-day .section-title{margin-top:24px}

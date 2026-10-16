@@ -1,0 +1,24 @@
+.DS_Store
+.thumbnail
+.claude/
+
+# Next.js app (app/)
+node_modules/
+.next*/
+out/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+
+# Secrets: never commit real environment files
+.env
+.env.*
+!.env.example
+
+# Customer data: the local database and exported records stay on this Mac
+.data*/
+data/
+
+# Working material kept on this Mac only
+screenshots/
+uploads/

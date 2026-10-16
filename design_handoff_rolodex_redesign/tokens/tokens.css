@@ -1,0 +1,131 @@
+/* Rolodex redesign: design tokens.
+   Drop-in replacement for the :root block in app/src/app/design-system.css.
+   Light theme only. A dark theme hasn't been designed yet (see docs/06-open-items.md). */
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Surfaces */
+  --page: #F4F3EF;
+  --surface: #FFFFFF;
+  --surface-subtle: #FAF9F6;
+  --sidebar-panel: #F7F6F2;
+  --hover: #F6F5F1;
+  --hover-row: #F8F7F4;
+  --segment-track: #F1F0EC;
+  --chip-neutral: #F3F2EE;
+
+  /* Text */
+  --ink: #17181C;
+  --text2: #2A2B30;
+  --text3: #3E4048;
+  --text4: #55565C;
+  --muted: #6E6F76;
+  --subtle: #8A8B91;
+  --faint: #9A9BA1;
+  --disabled: #B5B3AC;
+
+  /* Lines */
+  --line: #E3E1DA;
+  --line-sheet: #E7E5DF;
+  --line-soft: #ECEAE5;
+  --line-faint: #F0EEE9;
+  --line-row: #F3F2EE;
+  --line-strong: #D9D6CE;
+
+  /* Accent */
+  --accent: #2F5BEA;
+  --accent-hover: #2450D6;
+  --accent-ink: #1E43C4;
+  --accent-soft: #EEF2FE;
+  --accent-ring: #E3EAFD;
+  --accent-selection: #DCE5FD;
+  --accent-muted: #C9D6FB;
+  --accent-drop: #9DB2F5;
+
+  /* Status */
+  --late-bg: #FBEAE6;
+  --late-fg: #B03A22;
+  --due-bg: #FCF0DA;
+  --due-fg: #8F530A;
+  --soon-bg: #F1F0EC;
+  --soon-fg: #55565C;
+  --ok-bg: #E3F2E9;
+  --ok-fg: #226B45;
+  --danger-dot: #D9472B;
+
+  /* Dark controls + toast */
+  --dark-button: #17181C;
+  --dark-button-hover: #2C2D33;
+  --toast: #1C1D21;
+  --toast-sub: #A9AAB0;
+  --toast-ok: #7BD3A1;
+
+  /* Pipeline stages */
+  --stage-lead: #9A9BA1;
+  --stage-meeting: #2F5BEA;
+  --stage-proposal-sent: #8457E6;
+  --stage-negotiating: #D38A17;
+  --stage-won: #2F9461;
+  --stage-lost: #C0533F;
+
+  /* Relationship kinds (bg / fg) */
+  --kind-client-bg: #E3F2E9; --kind-client-fg: #226B45;
+  --kind-prospect-bg: #E6ECFC; --kind-prospect-fg: #2B4CC0;
+  --kind-referral-bg: #EFE8FA; --kind-referral-fg: #653CBA;
+  --kind-vendor-bg: #ECEBE6; --kind-vendor-fg: #4D4E54;
+  --kind-friend-bg: #FAF0D8; --kind-friend-fg: #83560A;
+  --kind-connection-bg: #E2F1F3; --kind-connection-fg: #1C6672;
+  --kind-former-bg: #F1F0EC; --kind-former-fg: #6E6F76;
+
+  /* Timeline kinds (bg / fg) */
+  --note-note-bg: #FAF0D8; --note-note-fg: #83560A;
+  --note-call-bg: #E3F2E9; --note-call-fg: #226B45;
+  --note-email-bg: #E6ECFC; --note-email-fg: #2B4CC0;
+  --note-text-bg: #E2F1F3; --note-text-fg: #1C6672;
+  --note-meeting-bg: #EFE8FA; --note-meeting-fg: #653CBA;
+
+  /* Type */
+  --font: 'Onest', ui-sans-serif, system-ui, sans-serif;
+  --text-base: 14px; --leading-base: 1.45; --tracking-base: -0.005em;
+
+  /* Radius */
+  --radius-chip: 6px;
+  --radius-control: 8px;
+  --radius-input: 10px;
+  --radius-button: 9px;
+  --radius-card: 14px;
+  --radius-sheet: 14px;
+  --radius-dialog: 18px;
+  --radius-menu: 12px;
+  --radius-company-avatar: 9px;
+  --radius-company-avatar-lg: 16px;
+  --radius-pill: 20px;
+
+  /* Shadow */
+  --shadow-sheet: 0 1px 2px rgba(23,24,28,.04), 0 4px 16px rgba(23,24,28,.03);
+  --shadow-card: 0 1px 2px rgba(23,24,28,.04);
+  --shadow-button: 0 1px 1px rgba(23,24,28,.04);
+  --shadow-nav-active: 0 1px 2px rgba(23,24,28,.06), 0 0 0 1px #E7E5DF;
+  --shadow-seg-active: 0 1px 2px rgba(23,24,28,.08), 0 0 0 1px #E3E1DA;
+  --shadow-menu: 0 14px 44px rgba(23,24,28,.16), 0 2px 6px rgba(23,24,28,.06);
+  --shadow-dialog: 0 30px 90px rgba(23,24,28,.28), 0 0 0 1px rgba(23,24,28,.06);
+  --shadow-toast: 0 14px 36px rgba(0,0,0,.26);
+  --shadow-focus-ring: 0 0 0 3px #E3EAFD;
+  --shadow-card-hover: 0 4px 14px rgba(23,24,28,.08);
+  --shadow-new-card: 0 0 0 3px #DCE5FD, 0 4px 14px rgba(47,91,234,.15);
+
+  /* Layout */
+  --side-w: 240px; --top-h: 52px; --sheet-inset: 8px;
+  --scrim: rgba(23,24,28,.30);
+}
+
+body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: var(--text-base); line-height: var(--leading-base); letter-spacing: var(--tracking-base); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-selection); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* Optical centering: every popup uses this */
+.rx-popup { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); max-height: calc(90vh - 48px); width: min(var(--popup-w, 600px), calc(100% - 32px)); background: var(--surface); border-radius: var(--radius-dialog); box-shadow: var(--shadow-dialog); display: flex; flex-direction: column; }
+.rx-scrim { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(2px); }
+
+/* Dropdowns never show a scrollbar */
+.rx-menu { scrollbar-width: none; } .rx-menu::-webkit-scrollbar { display: none; }

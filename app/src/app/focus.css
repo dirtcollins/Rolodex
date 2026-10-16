@@ -1,0 +1,18 @@
+/* One focus ring per control. Borders retain their normal color; legacy halos are removed. */
+:root{--focus-ring-width:2px;--focus-ring-offset:1px}
+:is(input,select,textarea,.in):focus,
+:is(input,select,textarea,.in):focus-visible{
+  border-color:var(--line);box-shadow:none;outline:var(--focus-ring-width) solid var(--focus);outline-offset:var(--focus-ring-offset)
+}
+:is(button,a,[tabindex]):focus-visible{outline:var(--focus-ring-width) solid var(--focus);outline-offset:2px;box-shadow:none}
+.search-box:focus-within,.search-wrap.is-open .search-box{
+  border-color:var(--line);box-shadow:none;outline:var(--focus-ring-width) solid var(--focus);outline-offset:var(--focus-ring-offset)
+}
+.search-box input:focus,.search-box input:focus-visible{border:0;box-shadow:none;outline:0}
+.page .pipe-move:focus-within{outline:0;box-shadow:none}
+.notif-btn[aria-expanded=true]{border-color:transparent;box-shadow:none}
+.chip-pick input:focus,.chip-pick input:focus-visible{outline:0;box-shadow:none}
+.chip-pick input:focus-visible+span{outline:var(--focus-ring-width) solid var(--focus);outline-offset:2px;box-shadow:none}
+.anchored-menu button:focus-visible{outline:var(--focus-ring-width) solid var(--focus);outline-offset:-2px;box-shadow:none;background:var(--accent-soft)}
+.tap-link:focus-visible{outline-offset:-2px}
+@media(forced-colors:active){:is(input,select,textarea,button,a,[tabindex]):focus-visible,.search-box:focus-within,.chip-pick input:focus-visible+span{outline-color:Highlight}}

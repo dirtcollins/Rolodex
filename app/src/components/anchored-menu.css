@@ -1,0 +1,6 @@
+/* Portaled to the current native dialog, so a form's scrolling body never clips its picker. */
+.anchored-menu,.anchored-menu.pick-list,.anchored-menu.ctx-menu{position:fixed;inset:auto;z-index:1000;box-sizing:border-box;margin:0;padding:6px;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:var(--pop);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);transform:none;animation:none;scroll-padding:6px;isolation:isolate}
+.anchored-menu .search-item{width:100%;border:0;background:none;text-align:left;cursor:pointer;border-radius:7px;min-height:40px;overflow-wrap:anywhere}
+.anchored-menu .search-item:is(:hover,.is-active){background:var(--accent-soft)}
+.anchored-menu .search-copy{min-width:0}.anchored-menu .search-copy strong,.anchored-menu .search-copy small{white-space:normal;overflow-wrap:anywhere}
+.anchored-menu .search-empty{margin:0;padding:12px;font-size:13px;color:var(--muted)}

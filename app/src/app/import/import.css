@@ -1,0 +1,8 @@
+/* Import: the file drop area (globals.css has the column table, .map-table). */
+.drop{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1.5px dashed var(--line);transition:border-color .15s,background-color .15s}
+.drop.is-over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .avatar svg{width:18px;height:18px}
+.drop .avatar.lg svg{width:26px;height:26px}
+.drop-copy{flex:1;min-width:220px}
+.drop-copy strong{display:block;font-size:16px;font-weight:600}
+.drop-copy small{display:block;margin-top:2px;color:var(--muted);font-size:13.5px}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+</helmet>
+<div onClick="{{ ed.stop }}" style="border:1px solid #D9D6CE; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(23,24,28,.05), 0 10px 30px rgba(23,24,28,.07);">
+  <div style="padding:14px 14px 10px; position:relative;">
+    <div style="position:relative; height:24px;">
+      <div aria-hidden="true" style="position:absolute; inset:0; white-space:pre; font-size:15px; font-weight:550; line-height:24px; color:transparent; pointer-events:none; overflow:hidden;"><sc-for list="{{ ed.segs }}" as="g" hint-placeholder-count="0"><span style="background:{{ g.bg }}; box-shadow:0 0 0 2px {{ g.bg }}; border-radius:3px;">{{ g.t }}</span></sc-for></div>
+      <input ref="{{ ed.inputRef }}" value="{{ ed.text }}" onChange="{{ ed.onText }}" onKeyDown="{{ ed.onKey }}" placeholder="{{ ed.placeholder }}" aria-label="To-do name" style="position:absolute; inset:0; width:100%; border:0; outline:none; background:transparent; font-size:15px; font-weight:550; line-height:24px; padding:0; margin:0; color:#17181C;">
+    </div>
+  </div>
+  <div style="display:flex; gap:6px; flex-wrap:wrap; padding:2px 12px 12px;">
+    <sc-for list="{{ ed.chips }}" as="c" hint-placeholder-count="5">
+      <div style="position:relative;">
+        <button onClick="{{ c.onClick }}" style="height:28px; padding:0 9px; border:1px solid {{ c.border }}; background:{{ c.bg }}; border-radius:7px; font-size:12.5px; font-weight:550; color:{{ c.fg }}; display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;" style-hover="background:#F6F5F1"><sc-if value="{{ c.hasPhoto }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width:18px; height:18px; flex:none; margin-left:-3px; border-radius:50%; background:#ECEBE6 center/cover no-repeat; background-image:{{ c.photo }};"></span></sc-if><sc-if value="{{ c.noPhoto }}" hint-placeholder-val="{{ true }}"><i class="icon-{{ c.icon }}" style="font-size:13px; color:{{ c.iconFg }};"></i></sc-if>{{ c.label }}</button>
+        <dc-import name="PickMenu" m="{{ c.menu }}" hint-size="0px,0px"></dc-import>
+      </div>
+    </sc-for>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid #F0EEE9;">
+    <span style="flex:1; min-width:0; font-size:12px; color:#9A9BA1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ ed.hint }}</span>
+    <button onClick="{{ ed.onCancel }}" style="height:32px; padding:0 12px; border:0; background:#F1F0EC; border-radius:8px; font-size:13px; font-weight:550; color:#3E4048; cursor:pointer;" style-hover="background:#E9E7E1">Cancel</button>
+    <button onClick="{{ ed.onAdd }}" style="height:32px; padding:0 13px; border:0; background:{{ ed.addBg }}; color:{{ ed.addFg }}; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">{{ ed.addLabel }}</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:600,&quot;height&quot;:200},&quot;ed&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

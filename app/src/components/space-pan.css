@@ -1,0 +1,6 @@
+/* Holding Space temporarily turns an overflow area into a hand tool. */
+.space-pan-ready,.space-pan-ready *{cursor:grab!important}
+.space-pan-ready{touch-action:none;user-select:none;-webkit-user-select:none}
+.space-pan-ready :is(input,textarea,select,[contenteditable="true"],[role="textbox"],[role="combobox"]){cursor:auto!important}
+body.is-space-dragging,body.is-space-dragging *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
+.space-pan-scrolling{scroll-behavior:auto!important}
