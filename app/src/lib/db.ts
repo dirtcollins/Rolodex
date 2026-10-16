@@ -1,7 +1,8 @@
 import "server-only";
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config";
+import { SCHEMA_FILES } from "./schema-files";
 
 // One way to talk to the database (Light Ops 2.0's lib/db.ts, made smaller). This Mac: a PGlite file in .data/.
 // Live: Supabase Postgres (DATABASE_URL) in Rolodex's own schema. Either way database/NNN_*.sql run once, in order.
@@ -11,15 +12,14 @@ type Tx = { query(sql: string, params?: unknown[]): Promise<Row[]> };
 interface Driver { query(sql: string, params?: unknown[]): Promise<Row[]>; exec(sql: string): Promise<void>; transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> }
 
 const DATA_DIR = path.resolve(process.cwd(), process.env.RX_DATA || ".data", "pglite");
-const SCHEMA_DIR = [path.resolve(process.cwd(), "database"), path.resolve(process.cwd(), "..", "database")].find((d) => existsSync(path.join(d, "001_core.sql")))!;
 
 async function applySchemaFiles(d: Pick<Driver, "query" | "exec">) {
   await d.exec("create table if not exists schema_files (name text primary key, applied_at timestamptz not null default now())");
   const done = new Set((await d.query("select name from schema_files")).map((r) => String(r.name)));
-  for (const f of readdirSync(SCHEMA_DIR).filter((f) => /^\d+.*\.sql$/.test(f)).sort()) {
-    if (done.has(f)) continue;
-    await d.exec(readFileSync(path.join(SCHEMA_DIR, f), "utf8"));
-    await d.query("insert into schema_files (name) values ($1)", [f]);
+  for (const { name, sql } of SCHEMA_FILES) {
+    if (done.has(name)) continue;
+    await d.exec(sql);
+    await d.query("insert into schema_files (name) values ($1)", [name]);
   }
 }
 
