@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:#F4F3EF;color:#17181C;font-family:'Onest',ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;letter-spacing:-.005em;font-feature-settings:"ss01"}
 button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
 a{color:#2F5BEA;text-decoration:none}a:hover{color:#1E43C4}
@@ -31,13 +31,13 @@ input::placeholder,textarea::placeholder{color:#9A9BA1}
 <div style="height:100vh; overflow:hidden; position:relative;">
 
 <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
-<div style="display:flex; height:100vh; background:#F4F3EF;">
-  <aside style="width:240px; flex:none; display:flex; flex-direction:column; padding:16px 12px 12px;">
+<div style="position:fixed; inset:0; display:flex; background:#F4F3EF; overflow:hidden;">
+  <aside style="width:240px; flex:none; display:flex; flex-direction:column; padding:16px 12px 12px; overflow:hidden; overscroll-behavior:none;">
     <button onClick="{{ goDash }}" aria-label="Rolodex home" style="display:flex; align-items:center; gap:9px; padding:4px 8px 18px; border:0; background:transparent; cursor:pointer; text-align:left;">
       <span style="width:26px; height:24px; overflow:hidden; display:block; flex:none;"><img src="assets/rolodex-logo.png" alt="" style="width:26px; height:auto; display:block;"></span>
       <span style="font-size:17px; font-weight:650; letter-spacing:-.035em;">Rolodex</span>
     </button>
-    <nav aria-label="Rolodex" style="display:flex; flex-direction:column; gap:1px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; margin:0 -4px; padding:0 4px;">
+    <nav aria-label="Rolodex" style="display:flex; flex-direction:column; gap:1px; flex:1; min-height:0; overflow:hidden; overscroll-behavior:none; margin:0 -4px; padding:0 4px;">
       <sc-for list="{{ navMain }}" as="n" hint-placeholder-count="5">
         <button onClick="{{ n.onClick }}" aria-current="{{ n.current }}" style="display:flex; align-items:center; gap:11px; height:34px; padding:0 10px; border:0; border-radius:8px; background:{{ n.bg }}; box-shadow:{{ n.shadow }}; color:{{ n.fg }}; font-size:14px; font-weight:{{ n.fw }}; cursor:pointer; text-align:left; width:100%; flex:none;" style-hover="background:{{ n.hover }}">
           <i class="icon-{{ n.icon }}" style="font-size:16px; color:{{ n.iconFg }};"></i><span style="flex:1;">{{ n.label }}</span>
@@ -66,7 +66,7 @@ input::placeholder,textarea::placeholder{color:#9A9BA1}
   </aside>
 
   <div style="flex:1; min-width:0; padding:8px 8px 8px 0; display:flex;">
-    <main ref="{{ mainRef }}" id="main-content" style="flex:1; min-width:0; background:#fff; border:1px solid #E7E5DF; border-radius:14px; box-shadow:0 1px 2px rgba(23,24,28,.04), 0 4px 16px rgba(23,24,28,.03); overflow-y:auto; overflow-x:hidden; position:relative;">
+    <main ref="{{ mainRef }}" id="main-content" style="flex:1; min-width:0; background:#fff; border:1px solid #E7E5DF; border-radius:14px; box-shadow:0 1px 2px rgba(23,24,28,.04), 0 4px 16px rgba(23,24,28,.03); overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; position:relative;">
       <div style="position:sticky; top:0; left:0; z-index:40; height:52px; display:flex; align-items:center; gap:10px; padding:0 16px 0 24px; background:rgba(255,255,255,.9); backdrop-filter:blur(12px); border-bottom:1px solid #F0EEE9;">
         <div style="display:flex; align-items:center; gap:6px; min-width:140px; flex:1 1 220px; font-size:13.5px; overflow:hidden;">
           <sc-for list="{{ crumbs }}" as="c" hint-placeholder-count="1">
@@ -1482,7 +1482,7 @@ class Component extends DCLogic {
   realPrefs(x) {
     return { name: x.prefs.name, title: 'Owner', email: x.prefs.email, phone: x.prefs.phone, ws: 'Collins Creative', tz: 'Pacific Time (Los Angeles)', week: 'sun', cadence: null,
       notif: { digest: true, fu: true, assigned: true, comments: true, deals: false }, signature: x.prefs.signature || ('—\n' + x.prefs.name + '\nCollins Creative'), bcc: false, mailConn: null,
-      services: x.prefs.services || SERVICES.slice(), team: x.team.map(m => ({ k: m.k, email: m.email, role: m.role, active: m.active })) };
+      services: x.prefs.services || SERVICES.slice(), team: x.team.map(m => ({ k: m.k, id: m.id, email: m.email, role: m.role, active: m.active })) };
   }
 
   kidsReady() {
@@ -2394,6 +2394,104 @@ class Component extends DCLogic {
     return base;
   }
 }
+// Database bridge for the approved V3.  It deliberately lives beside the prototype
+// logic so visual/layout code remains untouched.
+Component.prototype.saveToRolodex = async function(action, data, snap, after) {
+  try {
+    const res = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, data }) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.ok) throw new Error(out.error || 'That didn’t save. Try again.');
+    if (after) after(out);
+    return out;
+  } catch (err) {
+    this.setState({ data: snap });
+    this.flash({ msg: 'Couldn’t save', sub: err.message || 'Try again.' });
+    return null;
+  }
+};
+Component.prototype.contactSaveData = function(c, d) {
+  const co = c.companyId && d.companies.find(x => x.id === c.companyId);
+  return { id: c.id, first_name: c.first, last_name: c.lastName || c.name.slice(c.first.length).trim(), job_title: c.title, kinds: c.kind ? [c.kind] : [], phones: c.phone ? [{ value: c.phone }] : [], emails: c.email ? [{ value: c.email }] : [], city: c.city, keep_in_touch: c.cadence, next_follow_up: c.next, companies: co ? [{ id: co.id, title: c.title }] : [] };
+};
+const v3SaveNote = Component.prototype.saveNote;
+Component.prototype.saveNote = function(type, id) {
+  const snap = this.state.data, body = this.state.composer.trim(), kind = this.state.nk;
+  if (this.state.att.note.length) { this.flash({ msg: 'Attachments are not available yet', sub: 'Your note was not saved.' }); return; }
+  v3SaveNote.call(this, type, id);
+  if (!body) return;
+  const newest = this.state.data.notes.find(n => String(n.id).startsWith('new'));
+  this.saveToRolodex('note.add', { kind, body, happened_on: TODAY, touch: kind !== 'note', contact_id: type === 'contact' ? id : null, company_id: type === 'company' ? id : null, opportunity_id: type === 'project' ? id : null }, snap, out => {
+    this.setState(s => ({ data: { ...s.data, notes: s.data.notes.map(n => n === newest ? { ...n, id: out.id } : n) } }));
+  });
+};
+const v3EditNote = Component.prototype.saveEditNote;
+Component.prototype.saveEditNote = function(auto) {
+  const e = this.state.editNote, snap = this.state.data; if (!e || this.state.att.edit.length) { if (e && this.state.att.edit.length) this.flash({ msg: 'Attachments are not available yet' }); return; }
+  v3EditNote.call(this, auto); const note = this.state.data.notes.find(n => n.id === e.id);
+  if (note) this.saveToRolodex('note.save', { id: e.id, body: note.body }, snap);
+};
+const v3DeleteNote = Component.prototype.deleteNote;
+Component.prototype.deleteNote = function(id) { const snap = this.state.data; v3DeleteNote.call(this, id); this.saveToRolodex('note.delete', { id }, snap); };
+const v3Snooze = Component.prototype.snooze;
+Component.prototype.snooze = function(item, date) { const snap = this.state.data; v3Snooze.call(this, item, date); this.saveToRolodex('followup.set', { type: item.type, id: item.id, date }, snap); };
+const v3SetNext = Component.prototype.setNext;
+Component.prototype.setNext = function(item, date) { const snap = this.state.data; v3SetNext.call(this, item, date); this.saveToRolodex('followup.set', { type: item.type, id: item.id, date }, snap); };
+const v3Finish = Component.prototype.finish;
+Component.prototype.finish = function(item, kind, snapArg) {
+  const snap = snapArg || this.state.data; v3Finish.call(this, item, kind, snapArg);
+  this.saveToRolodex('followup.done', { type: item.type, id: item.id, next: item.cadence ? addDays(TODAY, item.cadence) : null }, snap, out => {
+    if (kind) this.saveToRolodex('note.add', { kind, body: 'Followed up', happened_on: TODAY, touch: true, contact_id: item.type === 'contact' ? item.id : null, company_id: item.type === 'company' ? item.id : null, opportunity_id: item.type === 'project' ? item.id : null }, snap);
+  });
+};
+const v3Cadence = Component.prototype.setCadence;
+Component.prototype.setCadence = function(id, cadence) { const snap = this.state.data; v3Cadence.call(this, id, cadence); const c = this.state.data.contacts.find(x => x.id === id); this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
+const v3AddLink = Component.prototype.addLink;
+Component.prototype.addLink = function(id) { const snap = this.state.data; v3AddLink.call(this, id); const c = this.state.data.contacts.find(x => x.id === id); if (c) this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
+const v3RemoveLink = Component.prototype.removeLink;
+Component.prototype.removeLink = function(id, link) { const snap = this.state.data; v3RemoveLink.call(this, id, link); const c = this.state.data.contacts.find(x => x.id === id); if (c) this.saveToRolodex('contact.save', this.contactSaveData(c, this.state.data), snap); };
+const v3MoveDeal = Component.prototype.moveDeal;
+Component.prototype.moveDeal = function(id, stage) { const snap = this.state.data; v3MoveDeal.call(this, id, stage); this.saveToRolodex('opportunity.move', { id, stage }, snap); };
+const v3ToggleTodo = Component.prototype.toggleTodo;
+Component.prototype.toggleTodo = function(id) { const snap = this.state.data, old = snap.todos.find(t => t.id === id); v3ToggleTodo.call(this, id); if (old) this.saveToRolodex('todo.done', { id, done: !old.done }, snap); };
+const v3DeleteTodo = Component.prototype.deleteTodo;
+Component.prototype.deleteTodo = function(id) { const snap = this.state.data; v3DeleteTodo.call(this, id); this.saveToRolodex('todo.delete', { id }, snap); };
+const v3DropTodo = Component.prototype.dropTodo;
+Component.prototype.dropTodo = function(target, patch) { const snap = this.state.data; const id = this.state.dragTodo; v3DropTodo.call(this, target, patch); const t = this.state.data.todos.find(x => x.id === id); if (t) this.saveToRolodex('todo.save', this.todoSaveData(t), snap); };
+Component.prototype.todoSaveData = function(t) { return { id: t.id, title: t.text, notes: t.desc, due: t.due, high: t.prio === 1, assigned_to: (this.state.prefs.team.find(x => x.k === t.who) || {}).id, contact_id: t.link && t.link.type === 'contact' ? t.link.id : null, company_id: t.link && t.link.type === 'company' ? t.link.id : null, subtasks: t.subtasks, comments: t.comments, position: t.order }; };
+const v3SaveNew = Component.prototype.saveNew;
+Component.prototype.saveNew = function() {
+  const snap = this.state.data, before = new Set(snap.contacts.map(x => x.id)); v3SaveNew.call(this);
+  const c = this.state.data.contacts.find(x => !before.has(x.id)); if (!c) return;
+  const co = c.companyId && this.state.data.companies.find(x => x.id === c.companyId), companyWasNew = co && !snap.companies.some(x => x.id === co.id);
+  const data = this.contactSaveData(c, this.state.data); delete data.id; data.companies = co ? [{ id: companyWasNew ? null : co.id, name: co.name, title: c.title }] : [];
+  this.saveToRolodex('contact.save', data, snap, out => this.setState(s => ({ contactId: out.id, data: { ...s.data, companies: s.data.companies.map(x => x.id === c.companyId && out.companyId ? { ...x, id: out.companyId } : x), contacts: s.data.contacts.map(x => x.id === c.id ? { ...x, id: out.id, companyId: out.companyId || x.companyId } : x) } })));
+};
+const v3SubmitTodo = Component.prototype.submitEd;
+Component.prototype.submitEd = function() {
+  const snap = this.state.data, before = new Set(snap.todos.map(x => x.id)); v3SubmitTodo.call(this);
+  const t = this.state.data.todos.find(x => !before.has(x.id)); if (t) this.saveToRolodex('todo.save', this.todoSaveData(t), snap, out => this.setState(s => ({ data: { ...s.data, todos: s.data.todos.map(x => x.id === t.id ? { ...x, id: out.id } : x) } })));
+};
+const v3SaveDeal = Component.prototype.saveDeal;
+Component.prototype.saveDeal = function() {
+  const snap = this.state.data, before = new Set(snap.deals.map(x => x.id)); v3SaveDeal.call(this);
+  const deal = this.state.data.deals.find(x => !before.has(x.id)); if (!deal) return;
+  const co = this.state.data.companies.find(x => x.id === deal.companyId), companyWasNew = co && !snap.companies.some(x => x.id === co.id), owner = this.state.prefs.team.find(x => x.k === deal.owner);
+  this.saveToRolodex('opportunity.save', { name: deal.name, company_id: co && !companyWasNew ? co.id : null, company: co && companyWasNew ? co.name : '', contact_id: deal.contactId, value: deal.value, stage: deal.stage, close_date: deal.close, next_follow_up: deal.next, owner_id: owner && owner.id }, snap, out => this.setState(s => ({ data: { ...s.data, companies: s.data.companies.map(x => x.id === deal.companyId && out.companyId ? { ...x, id: out.companyId } : x), deals: s.data.deals.map(x => x.id === deal.id ? { ...x, id: out.id, companyId: out.companyId || x.companyId } : x) } })));
+};
+const v3SendMail = Component.prototype.sendMail;
+Component.prototype.sendMail = function() {
+  const snap = this.state.data, m = this.state.mail; if (!m) return; const d = this.state.data, contact = m.item.type === 'contact' ? m.item.id : null, company = m.item.type === 'company' ? m.item.id : null;
+  v3SendMail.call(this); this.saveToRolodex('email.send', { contact_id: contact, company_id: company, to: m.to, subject: m.subject, body: m.body }, snap);
+};
+const v3SetPref = Component.prototype.setPref;
+Component.prototype.setPref = function(p) {
+  v3SetPref.call(this, p); clearTimeout(this._v3PrefTimer); this._v3PrefTimer = setTimeout(() => {
+    const pref = this.state.prefs;
+    if ('services' in p) this.saveToRolodex('settings.services', { services: pref.services }, this.state.data);
+    if ('name' in p || 'phone' in p || 'signature' in p) this.saveToRolodex('me.save', { name: pref.name, phone: pref.phone, signature: pref.signature }, this.state.data);
+    if ('team' in p) pref.team.forEach(member => { if (!member.id) return; this.saveToRolodex('user.active', { id: member.id, active: member.active }, this.state.data); this.saveToRolodex('user.save', { id: member.id, name: TEAM[member.k], email: member.email, role: member.role === 'Owner' ? 'owner' : 'sales' }, this.state.data); });
+  }, 300);
+};
 </script>
 </body>
 </html>

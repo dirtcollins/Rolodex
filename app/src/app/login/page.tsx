@@ -13,7 +13,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <Wordmark />
         <h1>Rolodex</h1>
         <p className="muted">Sign in to your Collins Creative Rolodex.</p>
-        {sp.error && <p className="form-error" role="alert">That email and password don’t match. Try again.</p>}
+        {sp.error && <p className="form-error" role="alert">{sp.error === "short" ? "Choose a password of at least 12 characters. It becomes your password." : "That email and password don’t match. Try again."}</p>}
         <input type="hidden" name="next" value={sp.next ?? ""} />
         <label className="field"><span>Email</span><input className="in" type="email" name="email" autoComplete="username" required autoFocus /></label>
         <label className="field"><span>Password</span><input className="in" type="password" name="password" autoComplete="current-password" required /></label>

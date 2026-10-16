@@ -108,17 +108,19 @@ const actions: Record<string, Action> = {
           returning id::int`, [...f, s.user.id]))[0] as { id: number }).id;
       }
       // Their companies, when the form sends them (a full list: what's left out is unlinked, never deleted).
+      let primaryCompany: number | null = null;
       if (Array.isArray(d.companies)) {
         const keep: number[] = [];
         for (const v of (d.companies as Data[]).slice(0, 10)) {
           const co = await companyFor(tx as never, v, s);
           if (!co) continue;
+          primaryCompany ??= co;
           keep.push(co);
           await q("insert into contact_companies (contact_id, company_id, title) values ($1, $2, $3) on conflict (contact_id, company_id) do update set title = excluded.title", [cid, co, str(v.title, 120)]);
         }
         await q("delete from contact_companies where contact_id = $1 and not (company_id = any($2::bigint[]))", [cid, keep]);
       }
-      return { id: cid! };
+      return { id: cid!, companyId: primaryCompany };
     });
   },
   /** Log a touch: we were in touch today. A note can go with it; a due follow-up is done (or moves to the new date). */
@@ -315,8 +317,9 @@ const actions: Record<string, Action> = {
     if (!contact && !company && !opportunity) throw new Problem("Pick who it’s about.");
     const kind = ACTIVITY_KINDS.some(([k]) => k === d.kind) ? String(d.kind) : "note";
     const on = date(d.happened_on);
-    const r = await one<{ id: number }>("insert into notes (contact_id, company_id, opportunity_id, kind, body, author_id, happened_at) values ($1, $2, $3, $4, $5, $6, ($7::date + time '12:00') at time zone 'America/Los_Angeles') returning id::int",
-      [contact, company, opportunity, kind, body, s.user.id, on]);
+    const attachments = Array.isArray(d.attachments) ? d.attachments.slice(0, 20) : [];
+    const r = await one<{ id: number }>("insert into notes (contact_id, company_id, opportunity_id, kind, body, author_id, happened_at, attachments) values ($1, $2, $3, $4, $5, $6, ($7::date + time '12:00') at time zone 'America/Los_Angeles', $8::text::jsonb) returning id::int",
+      [contact, company, opportunity, kind, body, s.user.id, on, JSON.stringify(attachments)]);
     // A call, email, meeting… (or "We talked") counts as a touch, on the day it happened; never moves the last touch back.
     if (contact && (d.touch || INTERACTIONS.includes(kind)))
       await query("update contacts set last_contacted = greatest(coalesce(last_contacted, $2::date), $2::date) where id = $1", [contact, on ?? today()]);
@@ -329,7 +332,8 @@ const actions: Record<string, Action> = {
   "note.save": async (d) => {
     const body = text(d.body);
     if (!body) throw new Problem("A note can’t be empty. Delete it instead.");
-    await query("update notes set body = $2, updated_at = now() where id = $1 and deleted_at is null", [need(int(d.id), "Pick a note."), body]);
+    const attachments = Array.isArray(d.attachments) ? JSON.stringify(d.attachments.slice(0, 20)) : null;
+    await query("update notes set body = $2, attachments = coalesce($3::text::jsonb, attachments), updated_at = now() where id = $1 and deleted_at is null", [need(int(d.id), "Pick a note."), body, attachments]);
   },
   "note.delete": async (d) => { await query("update notes set deleted_at = now() where id = $1", [need(int(d.id), "Pick a note.")]); },
 
@@ -337,14 +341,16 @@ const actions: Record<string, Action> = {
   "todo.save": async (d, s) => {
     const title = str(d.title, 300);
     if (!title) throw new Problem("Add what needs doing.");
-    const f = [title, text(d.notes).slice(0, 4000), date(d.due), d.high === true, int(d.assigned_to), int(d.contact_id), int(d.company_id), int(d.opportunity_id)];
+    const subtasks = Array.isArray(d.subtasks) ? d.subtasks.slice(0, 100) : [], comments = Array.isArray(d.comments) ? d.comments.slice(0, 100) : [];
+    const position = d.position !== undefined && Number.isFinite(Number(d.position)) ? Number(d.position) : null;
+    const f = [title, text(d.notes).slice(0, 4000), date(d.due), d.high === true, int(d.assigned_to), int(d.contact_id), int(d.company_id), int(d.opportunity_id), JSON.stringify(subtasks), JSON.stringify(comments), position];
     const id = int(d.id);
     // Editing leaves the project link as it was (the form doesn't show it).
     // Who gave it to its person, and when (the bell: "Nathan gave you a to-do").
-    if (id) { await query(`update todos set title=$2, notes=$3, due=$4, high=$5, contact_id=$7, company_id=$8, opportunity_id=coalesce($9, opportunity_id),
+    if (id) { await query(`update todos set title=$2, notes=$3, due=$4, high=$5, contact_id=$7, company_id=$8, opportunity_id=coalesce($9, opportunity_id), subtasks=$10::text::jsonb, comments=$11::text::jsonb, position=coalesce($12, position),
       assigned_by = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then $10::bigint end) else assigned_by end,
       assigned_at = case when assigned_to is distinct from $6 then (case when $6::bigint is not null then now() end) else assigned_at end, assigned_to=$6 where id=$1`, [id, ...f, s.user.id]); return { id }; }
-    return one<{ id: number }>("insert into todos (title, notes, due, high, assigned_to, contact_id, company_id, opportunity_id, created_by, assigned_by, assigned_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9, case when $5::bigint is not null then $9::bigint end, case when $5::bigint is not null then now() end) returning id::int", [...f, s.user.id]) as never;
+    return one<{ id: number }>("insert into todos (title, notes, due, high, assigned_to, contact_id, company_id, opportunity_id, subtasks, comments, position, created_by, assigned_by, assigned_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,coalesce($11, (select coalesce(max(position), 0) + 1 from todos)),$12, case when $5::bigint is not null then $12::bigint end, case when $5::bigint is not null then now() end) returning id::int", [...f, s.user.id]) as never;
   },
   "todo.done": async (d) => { await query("update todos set done_at = case when $2 then now() end where id = $1", [need(int(d.id), "Pick a to-do."), d.done !== false]); },
   "todo.delete": async (d) => { await query("update todos set deleted_at = now() where id = $1", [need(int(d.id), "Pick a to-do.")]); },
@@ -392,16 +398,17 @@ const actions: Record<string, Action> = {
     return transaction(async (tx) => {
       // A company typed by name that isn't in the Rolodex yet is added.
       const company = int(d.company_id) ?? (str(d.company, 160) ? await companyFor(tx as never, { name: d.company }, s) : null);
-      const f = [name, company, int(d.contact_id), stage, value, date(d.close_date), date(d.next_follow_up)];
+      const f = [name, company, int(d.contact_id), stage, value, date(d.close_date), date(d.next_follow_up), int(d.owner_id)];
       if (id) {
         // A new stage puts it at the top of that column on the board.
-        await tx.query(`update opportunities set name=$2, company_id=$3, contact_id=$4, ${STAGE_CHANGE("$5", "$9")},
-          position = case when stage <> $5 then ${TOP_OF("$5")} else position end, stage=$5, value_cents=$6, close_date=$7, next_follow_up=$8, updated_at=now()
+        await tx.query(`update opportunities set name=$2, company_id=$3, contact_id=$4, ${STAGE_CHANGE("$5", "$10")},
+          position = case when stage <> $5 then ${TOP_OF("$5")} else position end, stage=$5, value_cents=$6, close_date=$7, next_follow_up=$8, owner_id=$9, updated_at=now()
           where id=$1 and deleted_at is null`, [id, ...f, s.user.id]);
-        return { id };
+        return { id, companyId: company };
       }
-      return (await tx.query(`insert into opportunities (name, company_id, contact_id, stage, value_cents, close_date, next_follow_up, closed_at, closed_by, position, created_by)
-        values ($1,$2,$3,$4,$5,$6,$7, case when $4 in ('won','lost') then now() end, case when $4 in ('won','lost') then $8::bigint end, ${TOP_OF("$4")}, $8) returning id::int`, [...f, s.user.id]))[0] as { id: number };
+      const created = (await tx.query(`insert into opportunities (name, company_id, contact_id, stage, value_cents, close_date, next_follow_up, owner_id, closed_at, closed_by, position, created_by)
+        values ($1,$2,$3,$4,$5,$6,$7,$8, case when $4 in ('won','lost') then now() end, case when $4 in ('won','lost') then $9::bigint end, ${TOP_OF("$4")}, $9) returning id::int`, [...f, s.user.id]))[0] as { id: number };
+      return { ...created, companyId: company };
     });
   },
   /**

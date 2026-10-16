@@ -101,11 +101,18 @@ export function safeNext(next: string | null | undefined): string {
   return /^\/[A-Za-z0-9]/.test(n) && !n.startsWith("//") && !n.includes("\\") && !n.startsWith("/login") ? n : "/dashboard";
 }
 
-/** A new cookie value when the email and password match, else null. */
-export async function signIn(email: string, password: string, h: Headers): Promise<string | null> {
+/** A new cookie value when the email and password match, else null ("short": a first password under MIN_PASSWORD). */
+export async function signIn(email: string, password: string, h: Headers): Promise<string | null | "short"> {
   await ensureOwner();
   if (!(await takeRateSlot("login|" + clientIp(h), 8, 900))) return null;
   const u = await userByEmail(email);
+  // An account with no password yet: the first password typed on this Mac becomes its password.
+  if (u && u.active && !u.password_hash && isLocal(h)) {
+    if (password.length < MIN_PASSWORD) return "short";
+    await query("update users set password_hash = $1, session_version = session_version + 1 where id = $2 and password_hash = ''", [await hashPassword(password), u.id]);
+    const set = await userById(u.id);
+    return set && set.password_hash ? newSessionValue(set) : null;
+  }
   // A password is always checked, so a wrong email takes as long.
   const ok = await verifyPassword(password, u?.password_hash || "scrypt$" + "A".repeat(32) + "$" + "A".repeat(86));
   return ok && u && u.active && u.password_hash ? newSessionValue(u) : null;
